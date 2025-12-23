@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
-import { Send, Bot, PenTool, Trash2, Paperclip, X } from 'lucide-react';
+import { Send, Bot, PenTool, Trash2, Paperclip, X, Edit2, Check } from 'lucide-react';
 import SatchyAvatar from '../assets/Satchy.png';
 import { ToastContainer, type ToastMessage } from './Toast';
 import { Modal } from './Modal';
@@ -26,6 +26,8 @@ const ChatWidget = () => {
     const [loading, setLoading] = useState(false);
     const [executedIndices, setExecutedIndices] = useState<Set<number>>(new Set());
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [editedTitle, setEditedTitle] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -85,6 +87,19 @@ const ChatWidget = () => {
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
+
+    const handleSaveTitle = async () => {
+        if (!currentSessionId || !editedTitle.trim()) return;
+
+        try {
+            await api.put(`/chat/${currentSessionId}/title`, { title: editedTitle });
+            setSessions(prev => prev.map(s => s.id === currentSessionId ? { ...s, title: editedTitle } : s));
+            setIsEditingTitle(false);
+        } catch (error) {
+            console.error("Failed to rename session:", error);
+            // Optional: show toast error
+        }
+    };
 
     const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -232,9 +247,9 @@ const ChatWidget = () => {
         <div className="flex flex-col h-full font-body text-ink">
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             {/* Header */}
-            <div className="flex justify-between items-center mb-4 border-b-2 border-ink/20 pb-2">
+            <div className="flex justify-between items-center mb-1 border-b-2 border-ink/20 pb-2">
                 <div className="flex items-center gap-2">
-                    <img src={SatchyAvatar} alt="Satchy" className="w-13 h-13 rounded-full border border-gold object-cover" />
+                    <img src={SatchyAvatar} alt="Satchy" className="w-13 h-13 rounded-full border border-gold object-cover shrink-0" />
                     <h2 className="font-heading text-xl">Satchy</h2>
                 </div>
                 <div className="flex gap-2 items-center">
@@ -260,6 +275,50 @@ const ChatWidget = () => {
                     </button>
                 </div>
             </div>
+
+            {/* Sub-Header: Conversation Title */}
+            {currentSessionId && (
+                <div className="mb-2 px-1 flex items-center gap-2 min-h-[32px]">
+                     {isEditingTitle ? (
+                        <div className="flex items-center gap-1 w-full">
+                            <input
+                                type="text"
+                                value={editedTitle}
+                                onChange={(e) => setEditedTitle(e.target.value)}
+                                className="bg-white/50 border border-leather/30 rounded px-2 py-1 text-sm font-heading text-leather-dark focus:outline-none focus:border-leather w-full"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSaveTitle();
+                                    if (e.key === 'Escape') setIsEditingTitle(false);
+                                }}
+                            />
+                            <button onClick={handleSaveTitle} className="p-1 hover:bg-green-100 rounded text-green-700">
+                                <Check className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => setIsEditingTitle(false)} className="p-1 hover:bg-red-100 rounded text-red-700">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 group/title w-full">
+                            <h3 className="font-heading text-lg text-leather-dark truncate flex-1" title={sessions.find(s => s.id === currentSessionId)?.title}>
+                                {sessions.find(s => s.id === currentSessionId)?.title}
+                            </h3>
+                            <button
+                                onClick={() => {
+                                    const currentTitle = sessions.find(s => s.id === currentSessionId)?.title || "";
+                                    setEditedTitle(currentTitle);
+                                    setIsEditingTitle(true);
+                                }}
+                                className="opacity-0 group-hover/title:opacity-100 p-1 hover:bg-leather/10 rounded transition-all text-leather/50 hover:text-leather"
+                                title="Rename Conversation"
+                            >
+                                <Edit2 className="w-3 h-3" />
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Chat Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">

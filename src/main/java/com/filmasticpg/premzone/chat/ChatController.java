@@ -41,6 +41,12 @@ public class ChatController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{id}/title")
+    public ResponseEntity<ChatSession> renameSession(@PathVariable Long id, @RequestBody Map<String, String> payload) {
+        String newTitle = payload.get("title");
+        return ResponseEntity.ok(aiService.renameSession(id, newTitle));
+    }
+
     @PostMapping("/{id}/send")
     public ResponseEntity<String> sendMessage(@PathVariable Long id, @RequestBody Map<String, String> payload) {
         String message = payload.get("message");

@@ -101,6 +101,20 @@ public class AIService {
         chatSessionRepository.delete(session);
     }
 
+    @Transactional
+    public ChatSession renameSession(Long sessionId, String newTitle) {
+        AppUser user = userContext.getCurrentUser();
+        ChatSession session = chatSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RuntimeException("Session not found"));
+
+        if (!session.getUser().getId().equals(user.getId())) {
+            throw new RuntimeException("Unauthorized access to chat session");
+        }
+
+        session.setTitle(newTitle);
+        return chatSessionRepository.save(session);
+    }
+
     // --- Chat Logic ---
 
     @Transactional
