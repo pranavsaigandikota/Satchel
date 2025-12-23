@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import Navbar from '../components/Navbar';
+import { Send, Scroll, Trash2, ArrowLeft, PenTool, Bot } from 'lucide-react';
 
 interface ChatSession {
     id: number;
@@ -60,7 +60,7 @@ const ChatPage = () => {
 
     const startNewChat = async () => {
         try {
-            const res = await api.post('/chat/start', { title: 'New Chat' });
+            const res = await api.post('/chat/start', { title: 'New Conversation' });
             setSessions([res.data, ...sessions]); // Prepend new session
             setCurrentSessionId(res.data.id);
             setMessages([]);
@@ -86,13 +86,9 @@ const ChatPage = () => {
     const sendMessage = async () => {
         if (!input.trim()) return;
         if (!currentSessionId) {
-           // Create session first if none selected? Or force "New Chat" click?
-           // Let's force start new chat if logic is simple, or just alert.
-           // Better: create one on fly.
            const res = await api.post('/chat/start', { title: input.substring(0,20) });
            setSessions([res.data, ...sessions]);
            setCurrentSessionId(res.data.id);
-           // Then send message
            await sendToSession(res.data.id, input);
         } else {
            await sendToSession(currentSessionId, input);
@@ -123,10 +119,9 @@ const ChatPage = () => {
     const handleAction = async (proposalJson: string) => {
         try {
             await api.post('/chat/execute-action', { proposal: proposalJson });
-            alert("Action executed! Inventory updated."); 
-            // Ideally we also insert a system message or update UI to show "Accepted"
+            alert("The inventory has been updated according to your command."); 
         } catch (err) {
-            alert("Failed to execute action.");
+            alert("The spell fizzled (Action failed).");
             console.error(err);
         }
     };
@@ -137,40 +132,46 @@ const ChatPage = () => {
 
     // Helper to render message content with Action Cards
     const renderContent = (msg: ChatMessage) => {
-        if (msg.role === 'USER') return <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>;
+        const content = (
+            <div className={`whitespace-pre-wrap font-body text-lg ${msg.role === 'ASSISTANT' ? 'text-ink' : 'text-parchment'}`}>
+                {msg.role === 'USER' ? msg.content : msg.content.replace(/```json[\s\S]*?```/, '')} 
+                {/* Remove raw JSON from display if parsed below */}
+            </div>
+        );
+
+        if (msg.role === 'USER') return content;
 
         // Check for JSON Proposal code block
         const regex = /```json\s*(\{[\s\S]*?"action":\s*"REDUCE_QUANTITY"[\s\S]*?\})\s*```/;
         const match = msg.content.match(regex);
 
         if (match) {
-            const textPart = msg.content.replace(match[0], '').trim();
             const jsonPart = match[1];
-            
             let proposal = null;
-            try {
-                 proposal = JSON.parse(jsonPart);
-            } catch(e) {}
+            try { proposal = JSON.parse(jsonPart); } catch(e) {}
 
             return (
                 <div>
-                     <div style={{ whiteSpace: 'pre-wrap' }}>{textPart}</div>
+                     {content}
                      {proposal && (
-                         <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid #7c3aed' }}>
-                             <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', color: '#a78bfa' }}>Action Proposed</div>
-                             <div style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>
-                                 Reduce quantity for items:
-                                 <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem' }}>
+                         <div className="mt-4 p-4 bg-parchment border-2 border-dashed border-leather-light rounded shadow-sm rotate-1">
+                             <div className="font-heading text-rpg-red font-bold mb-2 flex items-center gap-2">
+                                <Scroll className="w-5 h-5" />
+                                Proposed Decree
+                             </div>
+                             <div className="text-sm font-body mb-3 text-ink">
+                                Consume the following items:
+                                <ul className="list-disc pl-5 mt-1 space-y-1">
                                     {proposal.items.map((it:any, idx:number) => (
-                                        <li key={idx}>Item ID: {it.id} (Qty: {it.quantity})</li>
+                                        <li key={idx}>Item #{it.id} (Qty: {it.quantity})</li>
                                     ))}
-                                 </ul>
+                                </ul>
                              </div>
                              <button 
                                 onClick={() => handleAction(jsonPart)}
-                                style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '0.5rem 1rem', borderRadius: '4px', cursor: 'pointer' }}
+                                className="w-full bg-leather text-gold font-heading py-2 rounded shadow border border-gold hover:bg-leather-light transition-colors"
                              >
-                                Confirm & Update Inventory
+                                Confirm & Update
                              </button>
                          </div>
                      )}
@@ -178,51 +179,60 @@ const ChatPage = () => {
             );
         }
 
-        return <div style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</div>;
+        return content;
     };
 
     return (
-        <div style={{ minHeight: '100vh', background: 'var(--bg-gradient)', color: 'white', display: 'flex', flexDirection: 'column' }}>
-            <Navbar />
-            
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden', padding: '0 2rem 2rem 2rem', gap: '2rem' }}>
+        <div className="h-full flex flex-col font-body">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-4 mb-4 border-b-2 border-ink/10">
+                <div className="flex items-center gap-4">
+                     <button 
+                        onClick={() => window.history.back()}
+                        className="text-leather hover:text-leather-dark transition-colors"
+                        title="Go Back"
+                     >
+                        <ArrowLeft className="w-6 h-6" />
+                     </button>
+                     <h2 className="font-heading text-2xl text-leather-dark">
+                        {sessions.find(s => s.id === currentSessionId)?.title || 'Rumors & Recipes'}
+                     </h2>
+                </div>
+                <button 
+                    onClick={() => setSidebarOpen(!sidebarOpen)} 
+                    className="md:hidden text-leather"
+                >
+                    {sidebarOpen ? 'Close Archives' : 'Archives'}
+                </button>
+            </div>
+
+            <div className="flex flex-1 overflow-hidden gap-6">
                 
-                {/* Sidebar */}
-                <div style={{ 
-                    width: sidebarOpen ? '300px' : '0px', 
-                    transition: 'width 0.3s', 
-                    background: 'rgba(255, 255, 255, 0.05)', 
-                    backdropFilter: 'blur(10px)',
-                    borderRadius: '16px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    overflow: 'hidden',
-                    border: '1px solid rgba(255,255,255,0.1)'
-                }}>
-                     <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                         <span style={{ fontWeight: 'bold' }}>History</span>
-                         <button onClick={startNewChat} style={{ background: 'transparent', border: 'none', color: '#a78bfa', fontSize: '1.5rem', cursor: 'pointer' }}>+</button>
+                {/* Sidebar (History) */}
+                <div className={`${sidebarOpen ? 'w-full md:w-1/3' : 'w-0'} transition-all duration-300 md:flex flex-col border-r-2 border-ink/10 pr-2 ${sidebarOpen ? 'block' : 'hidden md:block'}`}>
+                     <div className="flex justify-between items-center mb-4">
+                         <span className="font-heading text-lg text-ink/70 uppercase tracking-widest">Chronicles</span>
+                         <button onClick={startNewChat} className="text-leather hover:text-gold transition-colors" title="New Chat">
+                            <PenTool className="w-5 h-5" />
+                         </button>
                      </div>
-                     <div style={{ flex: 1, overflowY: 'auto' }}>
+                     <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
                          {sessions.map(s => (
                              <div 
                                 key={s.id} 
-                                onClick={() => setCurrentSessionId(s.id)}
-                                style={{ 
-                                    padding: '1rem', 
-                                    cursor: 'pointer', 
-                                    background: currentSessionId === s.id ? 'rgba(255,255,255,0.1)' : 'transparent',
-                                    borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                                }}
+                                onClick={() => { setCurrentSessionId(s.id); if(window.innerWidth < 768) setSidebarOpen(false); }}
+                                className={`p-3 rounded border cursor-pointer transition-all group relative ${currentSessionId === s.id ? 'bg-leather text-parchment border-leather shadow-md' : 'bg-parchment-dark border-transparent hover:border-leather/30'}`}
                              >
-                                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '200px' }}>{s.title}</span>
+                                 <p className="font-body text-lg truncate pr-6">{s.title}</p>
+                                 <div className="text-xs opacity-60 flex justify-between mt-1">
+                                    <span>{new Date(s.createdAt).toLocaleDateString()}</span>
+                                 </div>
                                  <button 
                                     onClick={(e) => deleteSession(s.id, e)}
-                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
-                                    title="Delete Chat"
+                                    className="absolute right-2 top-3 opacity-0 group-hover:opacity-100 text-rpg-red hover:scale-110 transition-all"
+                                    title="Burn Scroll"
                                  >
-                                    🗑️
+                                    <Trash2 className="w-4 h-4" />
                                  </button>
                              </div>
                          ))}
@@ -230,61 +240,50 @@ const ChatPage = () => {
                 </div>
 
                 {/* Chat Area */}
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                     <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center' }}>
-                         <button 
-                            onClick={() => window.history.back()}
-                            style={{ background: 'transparent', border: 'none', color: '#00bf53ff', fontSize: '1.2rem', marginRight: '1rem', cursor: 'pointer' }}
-                            title="Go Back"
-                         >
-                            ◀
-                         </button>
-                         <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'transparent', border: 'none', color: 'white', marginRight: '1rem', cursor: 'pointer' }}>
-                            {sidebarOpen ? '◀' : '▶'}
-                         </button>
-                         <span style={{ fontWeight: 'bold' }}>{sessions.find(s => s.id === currentSessionId)?.title || 'New Chat'}</span>
-                     </div>
+                <div className={`flex-1 flex flex-col ${sidebarOpen ? 'hidden md:flex' : 'flex'}`}>
                      
-                     <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                     {/* Messages */}
+                     <div className="flex-1 overflow-y-auto space-y-6 pr-4 custom-scrollbar pb-4">
+                         {messages.length === 0 && (
+                            <div className="text-center opacity-50 mt-10">
+                                <Bot className="w-12 h-12 mx-auto mb-4 text-leather" />
+                                <p className="text-xl">The oracle is listening...</p>
+                            </div>
+                         )}
                          {messages.map((msg, idx) => (
-                             <div key={idx} style={{ alignSelf: msg.role === 'USER' ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
-                                 <div style={{ 
-                                     background: msg.role === 'USER' ? '#7c3aed' : 'rgba(255,255,255,0.1)',
-                                     padding: '1rem', 
-                                     borderRadius: '12px',
-                                     borderBottomRightRadius: msg.role === 'USER' ? '2px' : '12px',
-                                     borderBottomLeftRadius: msg.role === 'ASSISTANT' ? '2px' : '12px'
-                                 }}>
+                             <div key={idx} className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}>
+                                 <div className={`max-w-[85%] relative p-4 rounded-lg shadow-sm ${msg.role === 'USER' ? 'bg-leather text-parchment rounded-br-none' : 'bg-parchment-dark border border-ink/10 text-ink rounded-bl-none'}`}>
                                      {renderContent(msg)}
                                  </div>
                              </div>
                          ))}
                          {loading && (
-                             <div style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.1)', padding: '1rem', borderRadius: '12px' }}>
-                                 Typing...
+                             <div className="flex justify-start">
+                                 <div className="bg-parchment-dark p-4 rounded-lg rounded-bl-none italic text-ink/50 animate-pulse">
+                                     Scribing response...
+                                 </div>
                              </div>
                          )}
                          <div ref={messagesEndRef} />
                      </div>
 
-                     <div style={{ padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                         <div style={{ display: 'flex', gap: '1rem' }}>
-                             <input 
-                                type="text" 
-                                value={input} 
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                                placeholder="Ask about recipes, inventory..."
-                                style={{ flex: 1, padding: '1rem', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.2)', background: 'rgba(0,0,0,0.2)', color: 'white' }}
-                             />
-                             <button 
-                                onClick={sendMessage}
-                                disabled={loading || !input.trim()}
-                                style={{ background: '#7c3aed', color: 'white', border: 'none', padding: '0 2rem', borderRadius: '8px', cursor: 'pointer', opacity: loading ? 0.5 : 1 }}
-                             >
-                                Send
-                             </button>
-                         </div>
+                     {/* Input */}
+                     <div className="mt-4 pt-4 border-t-2 border-ink/10 flex gap-2">
+                         <input 
+                            type="text" 
+                            value={input} 
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
+                            placeholder="Consult the oracle..."
+                            className="flex-1 bg-parchment border-2 border-leather-light/30 rounded px-4 py-2 focus:outline-none focus:border-leather text-ink placeholder-leather/40"
+                         />
+                         <button 
+                            onClick={sendMessage}
+                            disabled={loading || !input.trim()}
+                            className="bg-leather text-gold p-3 rounded shadow hover:bg-leather-light disabled:opacity-50 transition-colors"
+                         >
+                            <Send className="w-5 h-5" />
+                         </button>
                      </div>
                 </div>
             </div>

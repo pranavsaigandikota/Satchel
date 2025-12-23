@@ -1,70 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --color-leather: #8B4513;
+  --color-leather-dark: #5D2E0C;
+  --color-leather-light: #A0522D;
+
+  --color-parchment: #F0EAD6;
+  --color-parchment-dark: #E3D4B0;
+
+  --color-ink: #2F2F2F;
+
+  --color-gold: #DAA520;
+  --color-gold-glow: #FFD700;
+
+  --color-rpg-red: #A63A3A;
+
+  --font-heading: 'Rye', serif;
+  --font-subheading: 'Cinzel Decorative', cursive;
+  --font-body: 'Patrick Hand', cursive;
+  --font-stats: 'Crimson Text', serif;
+
+  --background-image-map-pattern: url('https://www.transparenttextures.com/patterns/aged-paper.png');
+}
+
 :root {
-  --primary: #10b981;
-  --primary-hover: #059669;
-  --bg-dark: #0f172a;
-  --bg-card: #1e293b;
-  --text-light: #f8fafc;
-  --text-gray: #94a3b8;
-  --glass-bg: rgba(30, 41, 59, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --gradient-start: #10b981;
-  --gradient-end: #3b82f6;
+  --leather-primary: #8B4513;
+  --parchment: #F0EAD6;
+  --ink: #2F2F2F;
 }
 
 body {
-  background-color: var(--bg-dark);
-  color: var(--text-light);
-  font-family: 'Inter', sans-serif;
+  background-color: #2a2a2a;
+  background-image: 
+    linear-gradient(rgba(42, 30, 20, 0.8), rgba(42, 30, 20, 0.8)),
+    url("https://www.transparenttextures.com/patterns/aged-paper.png");
+  color: var(--ink);
+  font-family: var(--font-body);
   margin: 0;
   min-height: 100vh;
 }
 
-/* Glassmorphism Utilities */
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-leather-dark); 
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-gold); 
+  border-radius: 5px;
+  border: 1px solid var(--color-leather-dark);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-glow); 
+}
+
+/* Legacy Glass Support (overridden for now or repurposed) */
 .glass {
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: 12px;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-  color: white;
-  padding: 10px 20px;
-  border-radius: 8px;
-  border: none;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.input-field {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  color: white;
-  padding: 10px;
-  border-radius: 8px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.input-field:focus {
-  outline: none;
-  border-color: var(--primary);
-}
-
-select.input-field option {
-  background-color: var(--bg-card);
-  color: white;
+    @apply bg-parchment/50 backdrop-blur-none border-none shadow-none;
 }
 
 .page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+    @apply max-w-7xl mx-auto p-4;
+}
+
+/* RPG Utilities */
+.rpg-text-shadow {
+    text-shadow: 1px 1px 0px rgba(0,0,0,0.2);
 }

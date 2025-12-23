@@ -1,30 +1,46 @@
 import { useAuth0 } from '@auth0/auth0-react';
 import { Link } from 'react-router-dom';
+import { LogOut } from 'lucide-react'; // Assuming Lucide is installed
 
 const Navbar = () => {
-
     const { logout, user, isAuthenticated } = useAuth0();
 
     return (
-        <nav className="glass" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
-            <Link to="/dashboard" style={{ textDecoration: 'none' }}>
-                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)' }}>Satchel</div>
+        <nav className="relative z-50 w-full bg-leather-dark border-b-4 border-leather shadow-lg flex justify-between items-center px-6 py-3 font-heading text-parchment">
+            {/* Logo / Brand */}
+            <Link to="/dashboard" className="no-underline group">
+                <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center border-2 border-yellow-200 shadow-inner group-hover:scale-110 transition-transform">
+                        <span className="text-leather-dark text-2xl">S</span>
+                    </div>
+                    <span className="text-2xl tracking-widest text-gold group-hover:text-gold-glow transition-colors drop-shadow-md">SATCHEL</span>
+                </div>
             </Link>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+
+            {/* User & Actions */}
+            <div className="flex items-center gap-6">
+                
+
+
                 {isAuthenticated && user && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        {user.picture && <img src={user.picture} alt="Profile" style={{ width: '30px', height: '30px', borderRadius: '50%' }} />}
-                        <span style={{ color: 'white', fontSize: '0.9rem' }}>{user.name}</span>
+                    <div className="flex items-center gap-3 bg-leather p-1 pr-3 rounded-full border border-leather-light shadow-inner">
+                        {user.picture ? (
+                            <img src={user.picture} alt="Profile" className="w-8 h-8 rounded-full border border-gold" />
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-leather-dark border border-gold"></div>
+                        )}
+                        <span className="font-body text-gold-glow text-lg truncate max-w-[100px]">{user.nickname || user.name}</span>
                     </div>
                 )}
-                <Link to="/chat" style={{ color: 'white', marginRight: '1rem', textDecoration: 'none' }}>
-                    <span style={{ fontSize: '1.2rem' }}>💬</span>
-                </Link>
+
+                {/* Logout Button (Brass Plate Style) */}
                 <button
                     onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                    style={{ background: 'transparent', border: '1px solid #ffffff33', color: 'white', padding: '5px 15px', borderRadius: '6px', cursor: 'pointer' }}
+                    className="flex items-center gap-2 bg-gradient-to-b from-gold to-yellow-700 text-leather-dark font-bold px-4 py-1 rounded shadow-md border border-yellow-200 hover:brightness-110 active:scale-95 transition-all"
+                    title="Logout"
                 >
-                    Logout
+                    <LogOut className="w-4 h-4" />
+                    <span className="uppercase text-sm tracking-widest">Logout</span>
                 </button>
             </div>
         </nav>
