@@ -18,6 +18,7 @@ public class AppUser {
     private String email;
 
     @Column(nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
 
     @Column(name = "created_at")

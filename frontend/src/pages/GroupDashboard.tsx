@@ -69,10 +69,38 @@ const GroupDashboard = () => {
                         placeholder="Global Search (across all groups)..."
                         className="input-field"
                         style={{ width: '100%' }}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                                // No ople alert for now, can route to a search results page later
-                                alert('Global search functionality linked to backend. Check /api/v1/items/search?q=' + e.currentTarget.value);
+                        onChange={async (e) => {
+                            const q = e.target.value;
+                            if (q.length === 0) {
+                                fetchGroups(); // Reset to all groups
+                            } else {
+                                try {
+                                    // Search for items matching query
+                                    const res = await api.get(`/items/search?q=${q}`);
+                                    const foundItems = res.data;
+                                    
+                                    // Filter existing groups? Or fetch all groups then filter?
+                                    // We'll filter the currently loaded groups list based on whether they contain found items.
+                                    // But wait, the previous state might be filtered.
+                                    // We need to fetch all groups first if we want accurate filtering, or cache 'allGroups'.
+                                    // For simplicity: refetch all groups then filter.
+                                    
+                                    const allGroupsRes = await api.get('/groups');
+                                    const allGroups = allGroupsRes.data;
+                                    
+                                    // Identify group IDs that have matching items
+                                    const matchingGroupIds = new Set(foundItems.map((item: any) => item.inventoryGroup?.id));
+                                    
+                                    // Filter groups: either name matches OR it contains matching items
+                                    const filtered = allGroups.filter((g: Group) => 
+                                        g.groupName.toLowerCase().includes(q.toLowerCase()) || 
+                                        matchingGroupIds.has(g.id)
+                                    );
+                                    
+                                    setGroups(filtered);
+                                } catch(err) {
+                                    console.error(err);
+                                }
                             }
                         }}
                     />

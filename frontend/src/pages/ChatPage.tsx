@@ -232,6 +232,13 @@ const ChatPage = () => {
                 {/* Chat Area */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'rgba(255, 255, 255, 0.05)', backdropFilter: 'blur(10px)', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
                      <div style={{ padding: '1rem', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center' }}>
+                         <button 
+                            onClick={() => window.history.back()}
+                            style={{ background: 'transparent', border: 'none', color: '#00bf53ff', fontSize: '1.2rem', marginRight: '1rem', cursor: 'pointer' }}
+                            title="Go Back"
+                         >
+                            ◀
+                         </button>
                          <button onClick={() => setSidebarOpen(!sidebarOpen)} style={{ background: 'transparent', border: 'none', color: 'white', marginRight: '1rem', cursor: 'pointer' }}>
                             {sidebarOpen ? '◀' : '▶'}
                          </button>

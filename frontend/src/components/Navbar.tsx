@@ -7,7 +7,9 @@ const Navbar = () => {
 
     return (
         <nav className="glass" style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', borderRadius: 0, borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
-            <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)' }}>Satchel</div>
+            <Link to="/dashboard" style={{ textDecoration: 'none' }}>
+                <div style={{ fontWeight: 'bold', fontSize: '1.2rem', color: 'var(--primary)' }}>Satchel</div>
+            </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 {isAuthenticated && user && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
