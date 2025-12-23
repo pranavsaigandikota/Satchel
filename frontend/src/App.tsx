@@ -28,7 +28,7 @@ function App() {
     getToken();
   }, [getAccessTokenSilently, isAuthenticated]);
 
-  if (isLoading) return <div className="min-h-screen bg-neutral-900 text-gold flex items-center justify-center font-heading text-2xl">Loading the Scrolls...</div>;
+  if (isLoading) return <div className="min-h-screen bg-neutral-900 text-gold flex items-center justify-center font-heading text-2xl">Opening your satchel...</div>;
 
   return (
     <BrowserRouter>

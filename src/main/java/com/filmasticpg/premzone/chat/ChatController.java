@@ -44,7 +44,9 @@ public class ChatController {
     @PostMapping("/{id}/send")
     public ResponseEntity<String> sendMessage(@PathVariable Long id, @RequestBody Map<String, String> payload) {
         String message = payload.get("message");
-        String response = aiService.generateResponse(id, message);
+        String image = payload.get("image"); // Optional Base64 image
+        String mimeType = payload.get("mimeType"); // Optional MimeType
+        String response = aiService.generateResponse(id, message, image, mimeType);
         return ResponseEntity.ok(response);
     }
 

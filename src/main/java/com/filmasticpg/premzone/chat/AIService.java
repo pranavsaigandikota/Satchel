@@ -12,6 +12,11 @@ import com.filmasticpg.premzone.config.UserContext;
 import com.filmasticpg.premzone.group.InventoryGroup;
 import com.filmasticpg.premzone.group.InventoryGroupService;
 import com.filmasticpg.premzone.item.ExpirableItem;
+import com.filmasticpg.premzone.item.FoodItem;
+import com.filmasticpg.premzone.item.MedicalItem;
+import com.filmasticpg.premzone.item.PantryItem;
+import com.filmasticpg.premzone.item.ElectronicItem;
+import com.filmasticpg.premzone.item.SupplyItem;
 import com.filmasticpg.premzone.item.InventoryItem;
 import com.filmasticpg.premzone.item.InventoryItemService;
 import com.filmasticpg.premzone.user.AppUser;
@@ -20,9 +25,11 @@ import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.model.Media;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.MimeTypeUtils;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -97,11 +104,14 @@ public class AIService {
     // --- Chat Logic ---
 
     @Transactional
-    public String generateResponse(Long sessionId, String userMessage) {
+    public String generateResponse(Long sessionId, String userMessage, String base64Image, String mimeType) {
         ChatSession session = getSession(sessionId);
 
-        // 1. Save User Message
-        ChatMessage userMsg = new ChatMessage(session, userMessage, MessageRole.USER);
+        // 1. Save User Message (Text part)
+        // Note: We are currently NOT saving the image to DB to save space, but we use
+        // it for generation.
+        ChatMessage userMsg = new ChatMessage(session, userMessage + (base64Image != null ? " [Image Uploaded]" : ""),
+                MessageRole.USER);
         chatMessageRepository.save(userMsg);
 
         // 2. Build Context
@@ -137,6 +147,32 @@ public class AIService {
                    ]
                 }
                 ```
+                OR
+                ```json
+                {
+                   "action": "ADD_ITEMS",
+                   "items": [
+                      {
+                        "name": "Milk",
+                        "quantity": 1,
+                        "groupId": 1,
+                        "category": "Dairy",
+                        "expiryDate": "2024-12-31",
+                        "type": "Food"
+                      }
+                   ]
+                }
+                ```
+
+                RULES FOR ADDING:
+                1. If the user provides a list or image of items, use "ADD_ITEMS".
+                2. Pick the most relevant Group ID from context. If unsure, use the first one.
+                3. **ESTIMATE** details if not provided:
+                   - `category`: Infer from name (e.g., Apple -> Produce/Food, Tylenol -> Medical).
+                   - `expiryDate`: ESTIMATE for Food/Medical. (Milk: +7 days, Veggies: +5 days, Canned: +1 year). Format YYYY-MM-DD.
+                   - `type`: 'Food', 'Medical', 'Electronics', 'Supply', 'Pantry'.
+                4. For Images: Analyze the image to identify items and quantities.
+
                 NEVER propose removing Non-Consumable items (like Tools) unless explicitly asked to.
                 For recipes, only reduce Ingredients (Food/Pantry).
                 IMPORTANT: You MUST include the exact "name" of the item in the JSON so the user knows what is being removed.
@@ -152,6 +188,25 @@ public class AIService {
             } else {
                 promptMessages.add(new AssistantMessage(msg.getContent()));
             }
+        }
+
+        // Add Current User Message (Multi-modal if image exists)
+        if (base64Image != null && !base64Image.isEmpty()) {
+            try {
+                // Use provided mimeType or default to JPEG
+                org.springframework.util.MimeType type = (mimeType != null && !mimeType.isEmpty())
+                        ? MimeTypeUtils.parseMimeType(mimeType)
+                        : MimeTypeUtils.IMAGE_JPEG;
+
+                Media media = new Media(type, new org.springframework.core.io.ByteArrayResource(
+                        java.util.Base64.getDecoder().decode(base64Image)));
+                promptMessages.add(new UserMessage(userMessage, List.of(media)));
+            } catch (Exception e) {
+                // Fallback if image fails
+                promptMessages.add(new UserMessage(userMessage + " [Image Upload Failed: " + e.getMessage() + "]"));
+            }
+        } else {
+            promptMessages.add(new UserMessage(userMessage));
         }
 
         // 4. Update Title (heuristic)
@@ -190,6 +245,65 @@ public class AIService {
                         }
                     }
                 }
+            } else if ("ADD_ITEMS".equals(action)) {
+                JsonNode items = root.path("items");
+                if (items.isArray()) {
+                    for (JsonNode item : items) {
+                        try {
+                            String name = item.path("name").asText();
+                            int quantity = item.path("quantity").asInt();
+                            String type = item.path("type").asText("Food");
+                            String categoryName = item.path("category").asText("General");
+                            // Default to first group if not specified.
+                            Long groupId = item.has("groupId") ? item.path("groupId").asLong() : 1L;
+                            if (groupId == 0)
+                                groupId = 1L; // Fallback
+
+                            // Estimate expiry if present
+                            String expiryDateStr = item.has("expiryDate") ? item.path("expiryDate").asText() : null;
+                            LocalDate expiryDate = (expiryDateStr != null && !expiryDateStr.isEmpty())
+                                    ? LocalDate.parse(expiryDateStr)
+                                    : null;
+
+                            InventoryItem newItem;
+                            // Factory logic for concrete items
+                            switch (type.toLowerCase()) {
+                                case "food":
+                                    newItem = new FoodItem();
+                                    break;
+                                case "medical":
+                                    newItem = new MedicalItem();
+                                    break;
+                                case "pantry":
+                                    newItem = new PantryItem();
+                                    break;
+                                case "electronics":
+                                    newItem = new ElectronicItem();
+                                    break;
+                                case "supply":
+                                default:
+                                    newItem = new SupplyItem(); // Default to Supply
+                                    break;
+                            }
+
+                            newItem.setName(name);
+                            newItem.setQuantity(quantity);
+                            // newItem.setType(type); // Removed as it doesn't exist; class determines type
+                            if (newItem instanceof ExpirableItem expItem) {
+                                expItem.setExpiryDate(expiryDate);
+                            }
+                            // Note: condition is not in ExpirableItem base but InventoryItem depending on
+                            // implementation.
+                            // Assuming InventoryItem has setCondition or similar if needed, but not
+                            // critical for MVP.
+
+                            inventoryItemService.addItem(groupId, newItem, categoryName);
+
+                        } catch (Exception e) {
+                            System.err.println("Failed to add item: " + e.getMessage());
+                        }
+                    }
+                }
             }
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Invalid proposal format", e);
@@ -201,13 +315,14 @@ public class AIService {
         StringBuilder sb = new StringBuilder();
 
         for (InventoryGroup group : groups) {
+            sb.append(String.format("Group: %s [ID: %d]\n", group.getGroupName(), group.getId()));
             for (InventoryItem item : group.getItems()) {
                 String category = "Unknown";
                 if (item.getCategory() != null) {
                     category = item.getCategory().getName();
                 }
 
-                sb.append(String.format("- [ID: %d] %s (Qty: %d) [Category: %s]",
+                sb.append(String.format("  - [ID: %d] %s (Qty: %d) [Category: %s]",
                         item.getId(), item.getName(), item.getQuantity(), category));
 
                 if (item instanceof ExpirableItem expItem && expItem.getExpiryDate() != null) {
