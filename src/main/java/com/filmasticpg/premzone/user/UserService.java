@@ -16,7 +16,11 @@ public class UserService {
     public AppUser syncUser(Jwt jwt) {
         String email = jwt.getClaimAsString("email");
         String sub = jwt.getSubject();
-        // String nickname = jwt.getClaimAsString("nickname");
+        String name = jwt.getClaimAsString("name");
+        String nickname = jwt.getClaimAsString("nickname");
+
+        // Choose best display name available
+        String displayName = (name != null) ? name : ((nickname != null) ? nickname : email);
 
         // Fallback for email if not present
         if (email == null) {
@@ -26,20 +30,21 @@ public class UserService {
         // Try to find by email first
         Optional<AppUser> existingUser = appUserRepository.findByUsername(sub); // storing sub as username for
                                                                                 // uniqueness
+
+        AppUser user;
         if (existingUser.isPresent()) {
-            return existingUser.get();
+            user = existingUser.get();
+        } else {
+            user = new AppUser();
+            user.setUsername(sub); // Use Auth0 ID as username to guarantee uniqueness
+            user.setCreatedAt(LocalDateTime.now());
+            user.setPassword("{noop}oauth2user"); // Dummy password
         }
 
-        // If not found by sub, check by email (legacy) or create new
-        // Note: We are now consistently using sub as username to ensure uniqueness
-        // across Auth0 providers
+        // Always update details
+        user.setEmail(email);
+        user.setDisplayName(displayName);
 
-        AppUser newUser = new AppUser();
-        newUser.setUsername(sub); // Use Auth0 ID as username to guarantee uniqueness
-        newUser.setEmail(email);
-        newUser.setPassword("{noop}oauth2user"); // Dummy password
-        newUser.setCreatedAt(LocalDateTime.now());
-
-        return appUserRepository.save(newUser);
+        return appUserRepository.save(user);
     }
 }

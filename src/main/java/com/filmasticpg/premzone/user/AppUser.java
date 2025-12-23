@@ -17,6 +17,9 @@ public class AppUser {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(name = "display_name")
+    private String displayName;
+
     @Column(nullable = false)
     @com.fasterxml.jackson.annotation.JsonIgnore
     private String password;
@@ -57,6 +60,14 @@ public class AppUser {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     public LocalDateTime getCreatedAt() {

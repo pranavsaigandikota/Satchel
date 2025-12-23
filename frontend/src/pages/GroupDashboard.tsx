@@ -178,7 +178,7 @@ const GroupDashboard = () => {
                             <Users className="w-4 h-4" />
                             <span>
                                 {group.members && group.members.length > 0 
-                                    ? group.members.map(m => m.username).join(', ') 
+                                    ? `${group.members.length} Member${group.members.length > 1 ? 's' : ''}`
                                     : 'No members'}
                             </span>
                         </div>

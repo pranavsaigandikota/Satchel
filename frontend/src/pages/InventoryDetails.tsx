@@ -279,11 +279,11 @@ const InventoryDetails = () => {
 
                         {/* Edit Actions Overlay */}
                         {editMode && (
-                            <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center gap-3 z-20 animate-in fade-in">
-                                <button onClick={() => openEditModal(item)} className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:scale-110 transition-transform">
+                            <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px] flex items-end justify-center gap-3 z-20 animate-in fade-in pb-8">
+                                <button onClick={() => openEditModal(item)} className="p-2 bg-leather text-gold rounded-full shadow-xl border-2 border-gold hover:bg-leather-light hover:scale-110 transition-all active:scale-95" title="Edit Item">
                                     <Edit2 className="w-5 h-5" />
                                 </button>
-                                <button onClick={() => handleDeleteItem(item)} className="p-3 bg-red-600 text-white rounded-full shadow-lg hover:scale-110 transition-transform">
+                                <button onClick={() => handleDeleteItem(item)} className="p-2 bg-rpg-red text-white rounded-full shadow-xl border-2 border-red-900 hover:bg-red-700 hover:scale-110 transition-all active:scale-95" title="Throw Away">
                                     <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
