@@ -64,6 +64,10 @@ const InventoryDetails = () => {
             fetchGroupDetails();
             fetchItems();
         }
+
+        const handleRefresh = () => fetchItems();
+        window.addEventListener('inventory-updated', handleRefresh);
+        return () => window.removeEventListener('inventory-updated', handleRefresh);
     }, [groupId, fetchGroupDetails, fetchItems]);
 
     const handleDeleteItem = async (itemId: number) => {

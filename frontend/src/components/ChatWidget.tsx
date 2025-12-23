@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import { Send, Bot, PenTool, Trash2 } from 'lucide-react';
+import SatchyAvatar from '../assets/Satchy.png';
 
 interface ChatSession {
     id: number;
@@ -19,6 +20,7 @@ const ChatWidget = () => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
+    const [executedIndices, setExecutedIndices] = useState<Set<number>>(new Set());
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -125,12 +127,57 @@ const ChatWidget = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    // Helper to parse message content and strip JSON if present
+    const parseMessage = (content: string) => {
+        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
+        const match = content.match(jsonRegex);
+        
+        let displayContent = content;
+        let actionData = null;
+
+        if (match) {
+            try {
+                actionData = JSON.parse(match[1]);
+                // Remove the JSON block from the display text
+                displayContent = content.replace(jsonRegex, '').trim();
+            } catch (e) {
+                console.error("Failed to parse JSON in message", e);
+            }
+        }
+        
+        return { displayContent, actionData };
+    };
+
+    const handleAction = async (actionData: any, index: number) => {
+        if (!actionData || actionData.action !== 'REDUCE_QUANTITY' || !actionData.items) return;
+
+        try {
+            for (const item of actionData.items) {
+                await api.post(`/items/${item.id}/reduce`, { amount: item.quantity });
+            }
+            
+            // Mark as executed
+            setExecutedIndices(prev => new Set(prev).add(index));
+
+            // Refresh inventory via custom event
+            window.dispatchEvent(new Event('inventory-updated'));
+            
+            // alert("Items reduced successfully!"); // Removed alert for smoother flow
+        } catch (err) {
+            console.error("Failed to execute action", err);
+            alert("Failed to reduce items. Check console.");
+        }
+    };
+
     // Compact render for sidebar
     return (
         <div className="flex flex-col h-full font-body text-ink">
             {/* Header */}
             <div className="flex justify-between items-center mb-4 border-b-2 border-ink/20 pb-2">
-                <h2 className="font-heading text-xl">Satchy</h2>
+                <div className="flex items-center gap-2">
+                    <img src={SatchyAvatar} alt="Satchy" className="w-13 h-13 rounded-full border border-gold object-cover" />
+                    <h2 className="font-heading text-xl">Satchy</h2>
+                </div>
                 <div className="flex gap-2 items-center">
                     <select 
                         className="bg-transparent text-sm max-w-[100px] truncate focus:outline-none cursor-pointer" 
@@ -163,13 +210,46 @@ const ChatWidget = () => {
                         <p className="text-sm">Wanna cook something? Throw a party? Just ask me and Ill help you!</p>
                     </div>
                 )}
-                {messages.map((msg, idx) => (
-                    <div key={idx} className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[90%] p-2 rounded text-sm ${msg.role === 'USER' ? 'bg-leather text-parchment' : 'bg-black/5 text-ink'}`}>
-                            {msg.content}
+                {messages.map((msg, idx) => {
+                    const { displayContent, actionData } = parseMessage(msg.content);
+
+                    return (
+                        <div key={idx} className={`flex gap-2 ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}>
+                            {msg.role === 'ASSISTANT' && (
+                                <img src={SatchyAvatar} alt="Satchy" className="w-10 h-10 rounded-full border border-gold object-cover mt-1 flex-shrink-0" />
+                            )}
+                            <div className={`flex flex-col items-start max-w-[85%]`}>
+                                <div className={`p-2 rounded text-sm whitespace-pre-wrap ${msg.role === 'USER' ? 'bg-leather text-parchment self-end' : 'bg-black/5 text-ink'}`}>
+                                    {displayContent}
+                                </div>
+                                {actionData && actionData.action === 'REDUCE_QUANTITY' && (
+                                    <div className="mt-2 text-xs bg-ink/5 p-2 rounded border border-ink/10 w-full">
+                                        <p className="font-bold mb-1">Proposed Reduction:</p>
+                                        <ul className="list-disc list-inside mb-2">
+                                            {actionData.items.map((item: any, i: number) => (
+                                                <li key={i}>
+                                                    {item.name ? <span className="font-semibold">{item.name}</span> : <span>Item {item.id}</span>} 
+                                                    <span className="opacity-70"> (-{item.quantity})</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <button 
+                                            onClick={() => handleAction(actionData, idx)}
+                                            disabled={executedIndices.has(idx)}
+                                            className={`w-full px-2 py-1 rounded transition-colors ${
+                                                executedIndices.has(idx) 
+                                                    ? 'bg-ink/20 text-ink/50 cursor-not-allowed' 
+                                                    : 'bg-leather text-gold hover:bg-leather-light'
+                                            }`}
+                                        >
+                                            {executedIndices.has(idx) ? 'Action Confirmed' : 'Confirm Action'}
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
                 {loading && (
                     <div className="text-xs italic opacity-50 ml-2">Satchy is typing...</div>
                 )}

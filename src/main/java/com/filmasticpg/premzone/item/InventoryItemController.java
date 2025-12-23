@@ -156,4 +156,13 @@ public class InventoryItemController {
 
         return inventoryItemService.updateItem(id, item, catName);
     }
+
+    @PostMapping("/{id}/reduce")
+    public void reduceItemQuantity(@PathVariable Long id, @RequestBody Map<String, Integer> payload) {
+        Integer amount = payload.get("amount");
+        if (amount == null) {
+            throw new IllegalArgumentException("Amount must be provided");
+        }
+        inventoryItemService.reduceItemQuantity(id, amount);
+    }
 }

@@ -132,13 +132,14 @@ public class AIService {
                 {
                    "action": "REDUCE_QUANTITY",
                    "items": [
-                      {"id": 123, "quantity": 2},
-                      {"id": 456, "quantity": 1}
+                      {"id": 123, "name": "Milk", "quantity": 2},
+                      {"id": 456, "name": "Eggs", "quantity": 1}
                    ]
                 }
                 ```
                 NEVER propose removing Non-Consumable items (like Tools) unless explicitly asked to.
                 For recipes, only reduce Ingredients (Food/Pantry).
+                IMPORTANT: You MUST include the exact "name" of the item in the JSON so the user knows what is being removed.
                 """
                 .formatted(LocalDate.now(), inventoryContext);
 

@@ -1,5 +1,6 @@
 import { useAuth0 } from '@auth0/auth0-react';
 import { Navigate } from 'react-router-dom';
+import SatchelLogo from '../assets/SatchelLogo.png';
 
 const Login = () => {
     const { loginWithRedirect, isAuthenticated, isLoading, error } = useAuth0();
@@ -39,15 +40,18 @@ const Login = () => {
                 <div className="absolute -bottom-2 -left-2 w-8 h-8 border-b-4 border-l-4 border-gold rounded-bl-lg"></div>
                 <div className="absolute -bottom-2 -right-2 w-8 h-8 border-b-4 border-r-4 border-gold rounded-br-lg"></div>
 
-                <div className="text-center mb-8">
-                    <h1 className="font-heading text-5xl text-leather-dark mb-2 drop-shadow-sm">Satchel</h1>
-                    <p className="font-body text-xl text-ink/70 italic">Your inventory, reimagined.</p>
+                <div className="text-center mb-8 flex flex-row items-center justify-center gap-4">
+                    <img src={SatchelLogo} alt="Satchel Logo" className="w-16 h-auto drop-shadow-lg" />
+                    <div>
+                        <h1 className="font-heading text-5xl text-leather-dark drop-shadow-sm text-left">Satchel</h1>
+                        <p className="font-body text-xl text-ink/70 italic text-left">Your inventory, reimagined.</p>
+                    </div>
                 </div>
 
                 <div className="space-y-6">
                     <div className="bg-leather/5 p-4 rounded border border-leather/20 text-center">
                         <p className="font-body text-lg text-leather-dark">
-                            Ever had so many things in your shelf and never knew it existed at the right time you needed it? Well.. we got you covered!
+                            Ever had so many things in your shelf and never knew it existed at the right time? Well.. Satchel got you covered!
                         </p>
                     </div>
 

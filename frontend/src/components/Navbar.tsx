@@ -1,6 +1,7 @@
 import { useAuth0 } from '@auth0/auth0-react';
 import { Link } from 'react-router-dom';
 import { LogOut } from 'lucide-react'; // Assuming Lucide is installed
+import SatchelLogo from '../assets/SatchelLogo.png';
 
 const Navbar = () => {
     const { logout, user, isAuthenticated } = useAuth0();
@@ -10,10 +11,8 @@ const Navbar = () => {
             {/* Logo / Brand */}
             <Link to="/dashboard" className="no-underline group">
                 <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 bg-gold rounded-full flex items-center justify-center border-2 border-yellow-200 shadow-inner group-hover:scale-110 transition-transform">
-                        <span className="text-leather-dark text-2xl">S</span>
-                    </div>
-                    <span className="text-2xl tracking-widest text-gold group-hover:text-gold-glow transition-colors drop-shadow-md">SATCHEL</span>
+                    <img src={SatchelLogo} alt="Satchel Logo" className="w-10 h-10 object-contain drop-shadow-md group-hover:scale-110 transition-transform" />
+                    <span className="font-heading text-2xl tracking-widest text-gold group-hover:text-gold-glow transition-colors drop-shadow-md">SATCHEL</span>
                 </div>
             </Link>
 
