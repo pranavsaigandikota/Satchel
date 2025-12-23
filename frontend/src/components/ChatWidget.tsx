@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../services/api';
 import { Send, Bot, PenTool, Trash2, Paperclip, X } from 'lucide-react';
 import SatchyAvatar from '../assets/Satchy.png';
+import { ToastContainer, type ToastMessage } from './Toast';
+import { Modal } from './Modal';
 
 interface ChatSession {
     id: number;
@@ -13,6 +15,7 @@ interface ChatMessage {
     role: 'USER' | 'ASSISTANT';
     content: string;
     image?: string | null;
+    id?: number; // Add id for messages from the backend
 }
 
 const ChatWidget = () => {
@@ -24,7 +27,19 @@ const ChatWidget = () => {
     const [executedIndices, setExecutedIndices] = useState<Set<number>>(new Set());
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+    const [showClearModal, setShowClearModal] = useState(false);
+
+    const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        const id = Math.random().toString(36).substr(2, 9);
+        setToasts(prev => [...prev, { id, message, type }]);
+    };
+
+    const removeToast = (id: string) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
 
     // Define fetchHistory with useCallback to be stable for dependencies
     const fetchHistory = useCallback(async () => {
@@ -110,22 +125,25 @@ const ChatWidget = () => {
         }
     };
 
+    const handleDeleteClick = () => {
+        if (!currentSessionId) return;
+        setShowClearModal(true);
+    };
+
     const deleteCurrentSession = async () => {
         if (!currentSessionId) return;
-        if (!confirm('Are you sure you want to burn this scroll?')) return;
+        // if (!confirm('Are you sure you want to burn this scroll?')) return; // Replaced by Modal
         
         try {
             await api.delete(`/chat/${currentSessionId}`);
             setSessions(prev => prev.filter(s => s.id !== currentSessionId));
             setCurrentSessionId(null);
             setMessages([]);
-            
-            // Optionally select the next available or just leave empty
-            // If we want to auto-select another:
-            // const remaining = sessions.filter(s => s.id !== currentSessionId);
-            // if (remaining.length > 0) setCurrentSessionId(remaining[0].id);
+            setShowClearModal(false);
+            addToast('Satchy was cleared successfully!', 'info');
         } catch (err) {
             console.error(err);
+            addToast('Satchy failed to clear it :(', 'error');
         }
     };
 
@@ -186,55 +204,33 @@ const ChatWidget = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
-    // Helper to parse message content and strip JSON if present
-    const parseMessage = (content: string) => {
-        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
-        const match = content.match(jsonRegex);
-        
-        let displayContent = content;
-        let actionData = null;
+    // parseMessage removed as it is unused
 
-        if (match) {
-            try {
-                actionData = JSON.parse(match[1]);
-                // Remove the JSON block from the display text
-                displayContent = content.replace(jsonRegex, '').trim();
-            } catch (e) {
-                console.error("Failed to parse JSON in message", e);
-            }
-        }
-        
-        return { displayContent, actionData };
-    };
 
-    const handleAction = async (actionData: any, index: number) => {
-        if (!actionData || !actionData.items) return;
+    const handleAction = async (proposal: any, index: number, msgId?: number) => {
+        if (executedIndices.has(index)) return;
 
         try {
-            if (actionData.action === 'REDUCE_QUANTITY') {
-                for (const item of actionData.items) {
-                    await api.post(`/items/${item.id}/reduce`, { amount: item.quantity });
-                }
-            } else if (actionData.action === 'ADD_ITEMS') {
-                // Use generic execute-action endpoint which calls AIService.executeProposal
-                await api.post('/chat/execute-action', { proposal: JSON.stringify(actionData) });
-            }
+            await api.post('/chat/execute-action', { 
+                proposal: JSON.stringify(proposal),
+                messageId: msgId 
+            });
             
-            // Mark as executed
-            setExecutedIndices(prev => new Set(prev).add(index));
-
-            // Refresh inventory via custom event
+            // Dispatch event to refresh inventory
             window.dispatchEvent(new Event('inventory-updated'));
             
-        } catch (err) {
-            console.error("Failed to execute action", err);
-            alert("Failed to execute action. Check console.");
+            setExecutedIndices(prev => new Set(prev).add(index));
+            addToast("Action executed successfully!", 'success');
+        } catch (error) {
+            console.error(error);
+            addToast("Failed to execute action. Check console.", 'error');
         }
     };
 
     // Compact render for sidebar
     return (
         <div className="flex flex-col h-full font-body text-ink">
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
             {/* Header */}
             <div className="flex justify-between items-center mb-4 border-b-2 border-ink/20 pb-2">
                 <div className="flex items-center gap-2">
@@ -254,9 +250,9 @@ const ChatWidget = () => {
                     </select>
                     
                     {currentSessionId && (
-                        <button onClick={deleteCurrentSession} title="Delete Chat" className="hover:text-rpg-red transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                        </button>
+                        <button onClick={handleDeleteClick} className="text-rpg-red hover:text-red-400 transition-colors p-1" title="Delete Chat">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
                     )}
 
                     <button onClick={startNewChat} title="New Chat" className="hover:text-gold transition-colors">
@@ -266,7 +262,7 @@ const ChatWidget = () => {
             </div>
 
             {/* Chat Messages Area */}
-            <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-4 mb-4" style={{ minHeight: '300px' }}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {messages.length === 0 && (
                     <div className="text-center opacity-50 mt-4 flex flex-col items-center">
                         <Bot className="w-8 h-8 mb-2" />
@@ -274,45 +270,78 @@ const ChatWidget = () => {
                     </div>
                 )}
                 {messages.map((msg, idx) => {
-                    const { displayContent, actionData } = parseMessage(msg.content);
+                    // Extract action if present
+                    let actionData = null;
+                    const isAssistant = msg.role === 'ASSISTANT';
+                    let displayContent = msg.content;
+                    
+                    // Check for JSON block
+                    if (isAssistant && msg.content.includes('```json')) {
+                        const start = msg.content.indexOf('```json');
+                        const end = msg.content.lastIndexOf('```');
+                        if (start !== -1 && end !== -1) {
+                            try {
+                                const jsonStr = msg.content.substring(start + 7, end);
+                                actionData = JSON.parse(jsonStr);
+                                // Hide the JSON block from display if desired, or keep it. 
+                                // User asked for card, so usually we hide the block or keep it small.
+                                // For now let's just keep full text but render card below.
+                            } catch (e) {
+                                // console.warn("Failed to parse JSON");
+                            }
+                        }
+                    }
+
+                    // Check if already executed in DB (persisted state)
+                    // We look for "executed": true in the raw content or rely on local state as backup
+                    const isPersistedExecuted = msg.content.includes('"executed": true');
 
                     return (
-                        <div key={idx} className={`flex gap-2 ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}>
+                        <div key={idx} className={`flex ${msg.role === 'USER' ? 'justify-end' : 'justify-start'}`}>
                             {msg.role === 'ASSISTANT' && (
                                 <img src={SatchyAvatar} alt="Satchy" className="w-10 h-10 rounded-full border border-gold object-cover mt-1 flex-shrink-0" />
                             )}
-                            <div className={`flex flex-col items-start max-w-[85%]`}>
-                                {msg.image && (
-                                    <img src={msg.image} alt="Uploaded" className="max-w-[200px] rounded mb-2 border border-gold/30 self-end" />
-                                )}
-                                <div className={`p-2 rounded text-sm whitespace-pre-wrap ${msg.role === 'USER' ? 'bg-leather text-parchment self-end' : 'bg-black/5 text-ink'}`}>
-                                    {displayContent}
+                            
+                            <div className={`max-w-[80%] rounded-lg p-3 ${
+                                msg.role === 'USER' 
+                                    ? 'bg-leather text-parchment' 
+                                    : 'bg-parchment border border-leather/20 text-ink shadow-sm'
+                            }`}>
+                                {/* ... Message Content ... */}
+                                <div className="whitespace-pre-wrap font-body text-sm">
+                                    {displayContent.split('```json')[0]} {/* Show text before JSON */}
                                 </div>
+
+                                {msg.image && (
+                                     <div className="mt-2">
+                                         <img src={`data:image/jpeg;base64,${msg.image}`} alt="Uploaded" className="max-w-full h-auto rounded border border-white/20" />
+                                     </div>
+                                )}
+
                                 {actionData && (
-                                    <div className="mt-2 text-xs bg-ink/5 p-2 rounded border border-ink/10 w-full">
-                                        <p className="font-bold mb-1">
-                                            {actionData.action === 'REDUCE_QUANTITY' ? 'Proposed Reduction:' : 'Proposed Addition:'}
-                                        </p>
-                                        <ul className="list-disc list-inside mb-2">
-                                            {actionData.items.map((item: any, i: number) => (
+                                    <div className="mt-3 bg-parchment-dark p-3 rounded border border-leather/20 text-sm">
+                                        <p className="font-bold text-leather-dark mb-1">Proposed Action:</p>
+                                        <ul className="list-disc pl-4 mb-2 space-y-1">
+                                            {actionData.items?.map((item: any, i: number) => (
                                                 <li key={i}>
-                                                    {item.name ? <span className="font-semibold">{item.name}</span> : <span>Item {item.id}</span>} 
-                                                    <span className="opacity-70"> 
-                                                        {actionData.action === 'REDUCE_QUANTITY' ? ` (-${item.quantity})` : ` (+${item.quantity})`}
-                                                    </span>
+                                                    {actionData.action === 'REDUCE_QUANTITY' ? (
+                                                        <span>Reduce <b>{item.name}</b> by {item.quantity}</span>
+                                                    ) : (
+                                                        <span>Add <b>{item.name}</b> (+{item.quantity})</span>
+                                                    )}
                                                 </li>
                                             ))}
                                         </ul>
                                         <button 
-                                            onClick={() => handleAction(actionData, idx)}
-                                            disabled={executedIndices.has(idx)}
-                                            className={`w-full px-2 py-1 rounded transition-colors ${
-                                                executedIndices.has(idx) 
-                                                    ? 'bg-ink/20 text-ink/50 cursor-not-allowed' 
+                                            className={`w-full py-1.5 rounded font-heading text-xs transition-colors ${
+                                                executedIndices.has(idx) || isPersistedExecuted
+                                                    ? 'bg-ink/10 text-ink/50 cursor-not-allowed'
                                                     : 'bg-leather text-gold hover:bg-leather-light'
                                             }`}
+                                            onClick={() => handleAction(actionData, idx, (msg as any).id)} // Pass msg.id if available
+                                            disabled={executedIndices.has(idx) || isPersistedExecuted}
                                         >
-                                            {executedIndices.has(idx) ? 'Action Confirmed' : (actionData.action === 'REDUCE_QUANTITY' ? 'Confirm Reduce' : 'Confirm Add')}
+                                            {executedIndices.has(idx) || isPersistedExecuted ? 'Action Confirmed' : (actionData.action === 'REDUCE_QUANTITY' ? 'Confirm Reduce' : 'Confirm Add')}
                                         </button>
                                     </div>
                                 )}
@@ -368,6 +397,31 @@ const ChatWidget = () => {
                     </button>
                 </div>
             </div>
+            <Modal
+                isOpen={showClearModal}
+                onClose={() => setShowClearModal(false)}
+                title="Erase Satchy's Memory?"
+            >
+                 <div>
+                    <p className="mb-6 text-ink">
+                        Are you sure you want to erase Satchy's memory? This history will be lost forever in the ashes.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                         <button 
+                            onClick={() => setShowClearModal(false)}
+                            className="px-4 py-2 text-ink/70 hover:bg-ink/5 rounded"
+                         >
+                            Cancel
+                         </button>
+                         <button 
+                            onClick={deleteCurrentSession}
+                            className="px-4 py-2 bg-rpg-red text-white rounded hover:brightness-110 shadow-sm"
+                         >
+                            Wipe his Brain
+                         </button>
+                     </div>
+                </div>
+            </Modal>
         </div>
     );
 };

@@ -229,10 +229,11 @@ public class AIService {
     }
 
     @Transactional
-    public void executeProposal(String jsonProposal) {
+    public void executeProposal(String jsonProposal, Long messageId) {
         try {
             JsonNode root = objectMapper.readTree(jsonProposal);
             String action = root.path("action").asText();
+            boolean executed = false;
 
             if ("REDUCE_QUANTITY".equals(action)) {
                 JsonNode items = root.path("items");
@@ -244,6 +245,7 @@ public class AIService {
                             inventoryItemService.reduceItemQuantity(id, quantity);
                         }
                     }
+                    executed = true;
                 }
             } else if ("ADD_ITEMS".equals(action)) {
                 JsonNode items = root.path("items");
@@ -302,6 +304,33 @@ public class AIService {
                         } catch (Exception e) {
                             System.err.println("Failed to add item: " + e.getMessage());
                         }
+                    }
+                    executed = true;
+                }
+            }
+
+            // Persist execution state if messageId is provided
+            if (executed && messageId != null) {
+                ChatMessage message = chatMessageRepository.findById(messageId).orElse(null);
+                if (message != null) {
+                    // Start simple: Append a flag or modify JSON.
+                    // Best way is to parse the original content, find the JSON block, and inject
+                    // "executed": true.
+                    // But parsing mix of text and JSON is hard.
+                    // Easier: Just append a marker [EXECUTED] or similar and handle in frontend?
+                    // Or since the frontend parses the JSON block, we can just edit the JSON block
+                    // in the text.
+
+                    String content = message.getContent();
+                    // Basic string replacement to inject "executed": true into the JSON action
+                    // block
+                    // We look for the "action": "..." part and insert "executed": true, right
+                    // before it.
+                    // Robustness: This is heuristic but works for our generated prompts
+                    if (content.contains("\"action\":")) {
+                        String updatedContent = content.replaceFirst("\"action\":", "\"executed\": true, \"action\":");
+                        message.setContent(updatedContent);
+                        chatMessageRepository.save(message);
                     }
                 }
             }

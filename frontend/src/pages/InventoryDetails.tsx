@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { ArrowLeft, Trash2, Edit2, Plus, X, Heart, Shield } from 'lucide-react';
+import { Modal } from '../components/Modal';
+import { ToastContainer, type ToastMessage } from '../components/Toast';
 
 interface Category {
     id: number;
@@ -40,6 +42,17 @@ const InventoryDetails = () => {
     // Edit Item State
     const [showEditModal, setShowEditModal] = useState(false);
     const [editingItem, setEditingItem] = useState<Item | null>(null);
+    const [itemToDelete, setItemToDelete] = useState<Item | null>(null);
+    const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+    const addToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+        const id = Math.random().toString(36).substr(2, 9);
+        setToasts(prev => [...prev, { id, message, type }]);
+    };
+
+    const removeToast = (id: string) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+    };
 
     const fetchGroupDetails = useCallback(async () => {
         try {
@@ -68,10 +81,13 @@ const InventoryDetails = () => {
         const handleRefresh = () => fetchItems();
         window.addEventListener('inventory-updated', handleRefresh);
         return () => window.removeEventListener('inventory-updated', handleRefresh);
-    }, [groupId, fetchGroupDetails, fetchItems]);
+    }, [groupId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const handleDeleteItem = async (itemId: number) => {
-        if (!window.confirm('Do you wish to delete this item?')) return;
+    const handleDeleteItem = (item: Item) => {
+        setItemToDelete(item);
+    };
+
+    const handleDeleteItemConfirm = async (itemId: number) => {
         try {
             const el = document.getElementById(`item-${itemId}`);
             if(el) {
@@ -81,9 +97,12 @@ const InventoryDetails = () => {
             setTimeout(async () => {
                 await api.delete(`/items/${itemId}`);
                 fetchItems();
+                addToast('Item discarded.', 'success');
+                setItemToDelete(null);
             }, 300);
         } catch (error) {
             console.error('Failed to delete item', error);
+            addToast('Failed to discard item.', 'error');
         }
     };
 
@@ -264,7 +283,7 @@ const InventoryDetails = () => {
                                 <button onClick={() => openEditModal(item)} className="p-3 bg-blue-600 text-white rounded-full shadow-lg hover:scale-110 transition-transform">
                                     <Edit2 className="w-5 h-5" />
                                 </button>
-                                <button onClick={() => handleDeleteItem(item.id)} className="p-3 bg-red-600 text-white rounded-full shadow-lg hover:scale-110 transition-transform">
+                                <button onClick={() => handleDeleteItem(item)} className="p-3 bg-red-600 text-white rounded-full shadow-lg hover:scale-110 transition-transform">
                                     <Trash2 className="w-5 h-5" />
                                 </button>
                             </div>
@@ -279,6 +298,38 @@ const InventoryDetails = () => {
                     </div>
                 ))}
             </div>
+            
+            <ToastContainer toasts={toasts} removeToast={removeToast} />
+            <Modal
+                isOpen={!!itemToDelete}
+                onClose={() => setItemToDelete(null)}
+                title="Throw Item Away?"
+            >
+                <div>
+                     <p className="mb-6 text-ink">
+                        Are you sure you want to remove <span className="font-bold text-leather-dark">{itemToDelete?.name}</span>? 
+                        This cannot be undone.
+                    </p>
+                    <div className="flex justify-end gap-2">
+                         <button 
+                            onClick={() => setItemToDelete(null)}
+                            className="px-4 py-2 text-ink/70 hover:bg-ink/5 rounded"
+                         >
+                            Keep It
+                         </button>
+                         <button 
+                            onClick={() => {
+                                if (itemToDelete) {
+                                    handleDeleteItemConfirm(itemToDelete.id);
+                                }
+                            }}
+                            className="px-4 py-2 bg-rpg-red text-white rounded hover:brightness-110 shadow-sm"
+                         >
+                            Discard
+                         </button>
+                     </div>
+                </div>
+            </Modal>
 
             {/* Modal Overlay Component */}
             {(showAddModal || showEditModal) && (

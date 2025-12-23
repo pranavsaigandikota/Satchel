@@ -51,9 +51,11 @@ public class ChatController {
     }
 
     @PostMapping("/execute-action")
-    public ResponseEntity<String> executeAction(@RequestBody Map<String, String> payload) {
-        String proposalJson = payload.get("proposal");
-        aiService.executeProposal(proposalJson);
+    public ResponseEntity<String> executeAction(@RequestBody Map<String, Object> payload) {
+        String proposalJson = (String) payload.get("proposal");
+        Long messageId = payload.containsKey("messageId") ? Long.valueOf(payload.get("messageId").toString()) : null;
+
+        aiService.executeProposal(proposalJson, messageId);
         return ResponseEntity.ok("Action executed successfully.");
     }
 }
