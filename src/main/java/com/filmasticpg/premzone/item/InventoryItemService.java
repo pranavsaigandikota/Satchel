@@ -87,4 +87,28 @@ public class InventoryItemService {
         item.setCategory(category);
         return inventoryItemRepository.save(item);
     }
+
+    @Transactional
+    public void reduceItemQuantity(@org.springframework.lang.NonNull Long id, int amount) {
+        if (id == null)
+            throw new IllegalArgumentException("ID cannot be null");
+        if (amount <= 0)
+            throw new IllegalArgumentException("Amount must be positive");
+
+        InventoryItem item = inventoryItemRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Item not found"));
+
+        if (item.getQuantity() == null) {
+            inventoryItemRepository.delete(item);
+            return;
+        }
+
+        int newQty = item.getQuantity() - amount;
+        if (newQty <= 0) {
+            inventoryItemRepository.delete(item);
+        } else {
+            item.setQuantity(newQty);
+            inventoryItemRepository.save(item);
+        }
+    }
 }

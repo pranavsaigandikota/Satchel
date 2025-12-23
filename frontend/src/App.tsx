@@ -5,6 +5,7 @@ import { setAuthToken } from './services/api';
 import Login from './pages/Login';
 import GroupDashboard from './pages/GroupDashboard';
 import InventoryDetails from './pages/InventoryDetails';
+import ChatPage from './pages/ChatPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute component={GroupDashboard} />} />
         <Route path="/group/:groupId" element={<ProtectedRoute component={InventoryDetails} />} />
+        <Route path="/chat" element={<ProtectedRoute component={ChatPage} />} />
       </Routes>
     </BrowserRouter>
   );

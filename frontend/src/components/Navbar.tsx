@@ -1,4 +1,5 @@
 import { useAuth0 } from '@auth0/auth0-react';
+import { Link } from 'react-router-dom';
 
 const Navbar = () => {
 
@@ -14,6 +15,9 @@ const Navbar = () => {
                         <span style={{ color: 'white', fontSize: '0.9rem' }}>{user.name}</span>
                     </div>
                 )}
+                <Link to="/chat" style={{ color: 'white', marginRight: '1rem', textDecoration: 'none' }}>
+                    <span style={{ fontSize: '1.2rem' }}>💬</span>
+                </Link>
                 <button
                     onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
                     style={{ background: 'transparent', border: '1px solid #ffffff33', color: 'white', padding: '5px 15px', borderRadius: '6px', cursor: 'pointer' }}
