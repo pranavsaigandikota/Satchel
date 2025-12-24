@@ -1,0 +1,11 @@
+target/
+.git/
+.mvn/
+.idea/
+.vscode/
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+**/*.class
+**/*.jar
+*.log
